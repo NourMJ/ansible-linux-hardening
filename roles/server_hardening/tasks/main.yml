@@ -1,0 +1,55 @@
+---
+# roles/server_hardening/tasks/main.yml
+
+- name: Disable SSH root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+  notify: restart sshd
+
+- name: Create a new admin user
+  user:
+    name: admin_user
+    comment: "Admin User"
+    shell: /bin/bash
+    groups: wheel
+    append: yes
+    password: "{{ 'YourSecurePassword' | password_hash('sha512') }}"
+
+- name: Allow 'wheel' group to use sudo without a password
+  lineinfile:
+    path: /etc/sudoers
+    regexp: '^#? %wheel\s+ALL=\(ALL\)'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    state: present
+    validate: 'visudo -cf %s'
+
+- name: Ensure firewalld is installed
+  dnf:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld is running and enabled
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Configure firewalld to allow SSH
+  firewalld:
+    service: ssh
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: (Optional) Remove other unneeded firewalld services
+  firewalld:
+    service: "{{ item }}"
+    permanent: yes
+    state: disabled
+    immediate: yes
+  loop:
+    - cockpit
+    - dhcpv6-client

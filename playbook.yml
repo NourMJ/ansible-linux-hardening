@@ -1,0 +1,6 @@
+---
+- name: Apply Security Hardening
+  hosts: all
+  become: true
+  roles:
+    - server_hardening
